@@ -13,7 +13,7 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(dirname, 'uploads');
+const uploadsDir = path.join(dirname, '/app/uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
