@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
 
 # Verify ImageMagick installation and HEIF support
 RUN convert --version
-RUN heif-convert -v
 
 WORKDIR /app
 
