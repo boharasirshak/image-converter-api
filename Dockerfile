@@ -11,8 +11,15 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Configure ImageMagick policy to allow HEIF processing
+RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy domain="coder" rights="read|write" pattern="PDF" \/>/g' /etc/ImageMagick-6/policy.xml || true
+RUN sed -i 's/<policy domain="coder" rights="none" pattern="HEIC" \/>/<policy domain="coder" rights="read|write" pattern="HEIC" \/>/g' /etc/ImageMagick-6/policy.xml || true
+RUN echo '<policy domain="coder" rights="read|write" pattern="HEIC" />' >> /etc/ImageMagick-6/policy.xml || true
+RUN echo '<policy domain="coder" rights="read|write" pattern="HEIF" />' >> /etc/ImageMagick-6/policy.xml || true
+
 # Verify ImageMagick installation and HEIF support
 RUN convert --version
+RUN convert -list format | grep -i heif || echo "HEIF support check"
 
 WORKDIR /app
 

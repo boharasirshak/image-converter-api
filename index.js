@@ -32,44 +32,53 @@ app.post('/convert', upload.single('image'), (req, res) => {
   console.log(`Converting: ${inputPath} -> ${outputPath}`);
   console.log(`Input file exists: ${fs.existsSync(inputPath)}`);
   console.log(`Input file size: ${fs.statSync(inputPath).size} bytes`);
+  console.log(`Original filename: ${req.file.originalname}`);
+  console.log(`Mimetype: ${req.file.mimetype}`);
 
-  // First try with ImageMagick convert
-  exec(`convert "${inputPath}" "${outputPath}"`, (error, stdout, stderr) => {
-    if (error) {
-      console.error('ImageMagick conversion failed:', error);
-      console.error('stderr:', stderr);
-      console.error('stdout:', stdout);
-      
-      // Try with heif-convert as fallback
-      console.log('Trying heif-convert as fallback...');
-      exec(`heif-convert "${inputPath}" "${outputPath}"`, (heifError, heifStdout, heifStderr) => {
-        if (heifError) {
-          console.error('heif-convert also failed:', heifError);
-          console.error('heif stderr:', heifStderr);
-          return res.status(500).send('Image conversion failed. Unsupported format or corrupted file.');
+  // First try with heif-convert (more reliable for HEIC files)
+  exec(`heif-convert "${inputPath}" "${outputPath}"`, (heifError, heifStdout, heifStderr) => {
+    if (!heifError) {
+      console.log('heif-convert succeeded');
+      res.sendFile(outputPath, (err) => {
+        if (err) {
+          console.error('Error sending file:', err);
         }
-        
-        console.log('heif-convert succeeded');
-        res.sendFile(outputPath, (err) => {
-          if (err) {
-            console.error('Error sending file:', err);
-          }
-          // Clean up temp files
-          fs.unlink(inputPath, () => {});
-          fs.unlink(outputPath, () => {});
-        });
+        // Clean up temp files
+        fs.unlink(inputPath, () => {});
+        fs.unlink(outputPath, () => {});
       });
       return;
     }
 
-    console.log('ImageMagick conversion succeeded');
-    res.sendFile(outputPath, (err) => {
-      if (err) {
-        console.error('Error sending file:', err);
+    console.error('heif-convert failed:', heifError);
+    console.error('heif stderr:', heifStderr);
+    
+    // Try with ImageMagick as fallback with explicit format specification
+    console.log('Trying ImageMagick as fallback...');
+    exec(`convert "${inputPath}[0]" -quality 90 "${outputPath}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('ImageMagick conversion also failed:', error);
+        console.error('stderr:', stderr);
+        console.error('stdout:', stdout);
+        
+        // Try one more time with identify to check the file
+        exec(`identify "${inputPath}"`, (identifyError, identifyStdout, identifyStderr) => {
+          console.log('File identification:', identifyStdout);
+          console.log('Identify error:', identifyError);
+          return res.status(500).send('Image conversion failed. File may be corrupted or in an unsupported format.');
+        });
+        return;
       }
-      // Clean up temp files
-      fs.unlink(inputPath, () => {});
-      fs.unlink(outputPath, () => {});
+
+      console.log('ImageMagick conversion succeeded');
+      res.sendFile(outputPath, (err) => {
+        if (err) {
+          console.error('Error sending file:', err);
+        }
+        // Clean up temp files
+        fs.unlink(inputPath, () => {});
+        fs.unlink(outputPath, () => {});
+      });
     });
   });
 });
