@@ -31,7 +31,7 @@ app.post('/convert', upload.single('image'), (req, res) => {
 
   console.log(`Converting: ${inputPath} -> ${outputPath}`);
 
-  exec(`magick "${inputPath}" "${outputPath}"`, (error, stdout, stderr) => {
+  exec(`convert "${inputPath}" "${outputPath}"`, (error, stdout, stderr) => {
     if (error) {
       console.error('Conversion error:', error);
       console.error('stderr:', stderr);
@@ -55,7 +55,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  exec('magick --version', (error, stdout, stderr) => {
+  exec('convert --version', (error, stdout, stderr) => {
     if (error) {
       console.error('ImageMagick not available:', error);
       return res.status(500).json({
