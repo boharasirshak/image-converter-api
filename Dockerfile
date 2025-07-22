@@ -7,11 +7,14 @@ RUN apt-get update && apt-get install -y \
     libheif1 \
     libheif-examples \
     libde265-0 \
+    libheif-dev \
+    heif-convert \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Verify ImageMagick installation
+# Verify ImageMagick installation and HEIF support
 RUN convert --version
+RUN heif-convert --help
 
 WORKDIR /app
 

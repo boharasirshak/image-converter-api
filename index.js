@@ -13,7 +13,7 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(dirname, '/app/uploads');
+const uploadsDir = path.join(dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -30,15 +30,39 @@ app.post('/convert', upload.single('image'), (req, res) => {
   const outputPath = path.join(uploadsDir, outputFileName);
 
   console.log(`Converting: ${inputPath} -> ${outputPath}`);
+  console.log(`Input file exists: ${fs.existsSync(inputPath)}`);
+  console.log(`Input file size: ${fs.statSync(inputPath).size} bytes`);
 
+  // First try with ImageMagick convert
   exec(`convert "${inputPath}" "${outputPath}"`, (error, stdout, stderr) => {
     if (error) {
-      console.error('Conversion error:', error);
+      console.error('ImageMagick conversion failed:', error);
       console.error('stderr:', stderr);
       console.error('stdout:', stdout);
-      return res.status(500).send('Image conversion failed.');
+      
+      // Try with heif-convert as fallback
+      console.log('Trying heif-convert as fallback...');
+      exec(`heif-convert "${inputPath}" "${outputPath}"`, (heifError, heifStdout, heifStderr) => {
+        if (heifError) {
+          console.error('heif-convert also failed:', heifError);
+          console.error('heif stderr:', heifStderr);
+          return res.status(500).send('Image conversion failed. Unsupported format or corrupted file.');
+        }
+        
+        console.log('heif-convert succeeded');
+        res.sendFile(outputPath, (err) => {
+          if (err) {
+            console.error('Error sending file:', err);
+          }
+          // Clean up temp files
+          fs.unlink(inputPath, () => {});
+          fs.unlink(outputPath, () => {});
+        });
+      });
+      return;
     }
 
+    console.log('ImageMagick conversion succeeded');
     res.sendFile(outputPath, (err) => {
       if (err) {
         console.error('Error sending file:', err);
