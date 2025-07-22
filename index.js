@@ -1,13 +1,13 @@
-const express = require('express');
-const multer = require('multer');
-const { exec } = require('child_process');
-const path = require('path');
-const { fileURLToPath } = require('url');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+import express from 'express';
+import multer from 'multer';
+import { exec } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const filename = fileURLToPath(import.meta.url);
+const dirname = path.dirname(filename);
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -17,7 +17,7 @@ const upload = multer({ dest: 'uploads/' });
 app.post('/convert', upload.single('image'), (req, res) => {
   const inputPath = req.file.path;
   const outputFileName = `${uuidv4()}.jpg`;
-  const outputPath = path.join(__dirname, 'uploads', outputFileName);
+  const outputPath = path.join(dirname, 'uploads', outputFileName);
 
   exec(`magick "${inputPath}" "${outputPath}"`, (error) => {
     if (error) {
