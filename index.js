@@ -12,20 +12,37 @@ const dirname = path.dirname(filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
-const upload = multer({ dest: 'uploads/' });
+// Ensure uploads directory exists
+const uploadsDir = path.join(dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const upload = multer({ dest: uploadsDir });
 
 app.post('/convert', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No image file provided.');
+  }
+
   const inputPath = req.file.path;
   const outputFileName = `${uuidv4()}.jpg`;
-  const outputPath = path.join(dirname, 'uploads', outputFileName);
+  const outputPath = path.join(uploadsDir, outputFileName);
 
-  exec(`magick "${inputPath}" "${outputPath}"`, (error) => {
+  console.log(`Converting: ${inputPath} -> ${outputPath}`);
+
+  exec(`magick "${inputPath}" "${outputPath}"`, (error, stdout, stderr) => {
     if (error) {
       console.error('Conversion error:', error);
+      console.error('stderr:', stderr);
+      console.error('stdout:', stdout);
       return res.status(500).send('Image conversion failed.');
     }
 
-    res.sendFile(outputPath, () => {
+    res.sendFile(outputPath, (err) => {
+      if (err) {
+        console.error('Error sending file:', err);
+      }
       // Clean up temp files
       fs.unlink(inputPath, () => {});
       fs.unlink(outputPath, () => {});
@@ -37,6 +54,26 @@ app.get('/', (req, res) => {
   res.send('HEIC Image Converter is running.');
 });
 
+app.get('/health', (req, res) => {
+  exec('magick --version', (error, stdout, stderr) => {
+    if (error) {
+      console.error('ImageMagick not available:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'ImageMagick not available',
+        error: error.message
+      });
+    }
+    
+    res.json({
+      status: 'healthy',
+      imagemagick: stdout.trim(),
+      uploadsDir: uploadsDir
+    });
+  });
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server listening at http://localhost:${port}`);
+  console.log(`📁 Uploads directory: ${uploadsDir}`);
 });
