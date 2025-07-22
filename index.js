@@ -35,6 +35,25 @@ app.post('/convert', upload.single('image'), (req, res) => {
   console.log(`Original filename: ${req.file.originalname}`);
   console.log(`Mimetype: ${req.file.mimetype}`);
 
+  // Check file magic numbers to determine actual file type
+  const buffer = fs.readFileSync(inputPath);
+  const firstBytes = buffer.subarray(0, 12);
+  console.log(`First 12 bytes (hex): ${firstBytes.toString('hex')}`);
+  console.log(`First 12 bytes (ascii): ${firstBytes.toString('ascii').replace(/[^\x20-\x7E]/g, '.')}`);
+  
+  // Check for HEIC magic numbers
+  const heicMagic1 = buffer.indexOf('ftyp') !== -1 && buffer.indexOf('heic') !== -1;
+  const heicMagic2 = buffer.indexOf('ftyp') !== -1 && buffer.indexOf('mif1') !== -1;
+  const heicMagic3 = buffer.subarray(4, 8).toString() === 'ftyp';
+  
+  console.log(`HEIC magic check 1 (ftyp+heic): ${heicMagic1}`);
+  console.log(`HEIC magic check 2 (ftyp+mif1): ${heicMagic2}`);
+  console.log(`HEIC magic check 3 (ftyp at pos 4): ${heicMagic3}`);
+
+  if (!heicMagic1 && !heicMagic2 && !heicMagic3) {
+    return res.status(400).send('File does not appear to be a valid HEIC image. Please upload a .heic or .heif file.');
+  }
+
   // First try with heif-convert (more reliable for HEIC files)
   exec(`heif-convert "${inputPath}" "${outputPath}"`, (heifError, heifStdout, heifStderr) => {
     if (!heifError) {
@@ -104,6 +123,32 @@ app.get('/health', (req, res) => {
       uploadsDir: uploadsDir
     });
   });
+});
+
+app.post('/test-upload', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file provided.' });
+  }
+
+  const buffer = fs.readFileSync(req.file.path);
+  const firstBytes = buffer.subarray(0, 20);
+  
+  const fileInfo = {
+    originalname: req.file.originalname,
+    mimetype: req.file.mimetype,
+    size: req.file.size,
+    firstBytesHex: firstBytes.toString('hex'),
+    firstBytesAscii: firstBytes.toString('ascii').replace(/[^\x20-\x7E]/g, '.'),
+    hasHeicMagic: buffer.indexOf('ftyp') !== -1 && (buffer.indexOf('heic') !== -1 || buffer.indexOf('mif1') !== -1),
+    ftypPosition: buffer.indexOf('ftyp'),
+    heicPosition: buffer.indexOf('heic'),
+    mif1Position: buffer.indexOf('mif1')
+  };
+
+  // Clean up the test file
+  fs.unlink(req.file.path, () => {});
+
+  res.json(fileInfo);
 });
 
 app.listen(port, () => {
