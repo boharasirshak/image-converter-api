@@ -1,36 +1,27 @@
-FROM ubuntu:22.04
+FROM dpokidov/imagemagick:latest
 
-# Install system dependencies
+# Install Node.js and additional HEIF tools
 RUN apt-get update && apt-get install -y \
     curl \
-    imagemagick \
-    libheif1 \
     libheif-examples \
-    libde265-0 \
-    libheif-dev \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure ImageMagick policy to allow HEIF processing
-RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy domain="coder" rights="read|write" pattern="PDF" \/>/g' /etc/ImageMagick-6/policy.xml || true
-RUN sed -i 's/<policy domain="coder" rights="none" pattern="HEIC" \/>/<policy domain="coder" rights="read|write" pattern="HEIC" \/>/g' /etc/ImageMagick-6/policy.xml || true
-RUN echo '<policy domain="coder" rights="read|write" pattern="HEIC" />' >> /etc/ImageMagick-6/policy.xml || true
-RUN echo '<policy domain="coder" rights="read|write" pattern="HEIF" />' >> /etc/ImageMagick-6/policy.xml || true
+# Install Node.js
+RUN curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
 
 # Verify ImageMagick installation and HEIF support
-RUN convert --version
-RUN convert -list format | grep -i heif || echo "HEIF support check"
+RUN magick --version
+RUN magick -list format | grep -i heic || echo "HEIC support check"
 
 WORKDIR /app
 
 # Create uploads directory
 RUN mkdir -p uploads
 
-# Install Node.js
+# Copy package files and install dependencies
 COPY package.json ./
-RUN curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install
+RUN npm install
 
 # Copy application files
 COPY . .
