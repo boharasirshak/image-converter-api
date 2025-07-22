@@ -1,27 +1,42 @@
-// index.js
-const express = require("express");
-const multer = require("multer");
-const { execFile } = require("child_process");
-const fs = require("fs");
-const path = require("path");
+import express from 'express';
+import multer from 'multer';
+import { exec } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
-const upload = multer({ dest: "uploads/" });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
+const port = process.env.PORT || 8080;
 
-app.post("/convert", upload.single("image"), (req, res) => {
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/convert', upload.single('image'), (req, res) => {
   const inputPath = req.file.path;
-  const outputPath = `${inputPath}.jpg`;
+  const outputFileName = `${uuidv4()}.jpg`;
+  const outputPath = path.join(__dirname, 'uploads', outputFileName);
 
-  execFile("convert", [inputPath, outputPath], (err) => {
-    if (err) return res.status(500).send("Conversion failed");
+  exec(`magick "${inputPath}" "${outputPath}"`, (error) => {
+    if (error) {
+      console.error('Conversion error:', error);
+      return res.status(500).send('Image conversion failed.');
+    }
 
-    res.download(outputPath, "converted.jpg", () => {
-      fs.unlinkSync(inputPath);
-      fs.unlinkSync(outputPath);
+    res.sendFile(outputPath, () => {
+      // Clean up temp files
+      fs.unlink(inputPath, () => {});
+      fs.unlink(outputPath, () => {});
     });
   });
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running on port 3000");
+app.get('/', (req, res) => {
+  res.send('HEIC Image Converter is running.');
+});
+
+app.listen(port, () => {
+  console.log(`🚀 Server listening at http://localhost:${port}`);
 });

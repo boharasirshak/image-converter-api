@@ -1,19 +1,21 @@
-FROM node:18-slim
+FROM ubuntu:22.04
 
-# Install ImageMagick and libheif
 RUN apt-get update && apt-get install -y \
-  imagemagick \
-  libheif-dev \
-  && rm -rf /var/lib/apt/lists/*
+    curl \
+    imagemagick \
+    libheif1 \
+    libheif-examples \
+    libde265-0 \
+    build-essential
 
-# Set up working directory
 WORKDIR /app
 
-# Copy files
-COPY package*.json ./
-RUN npm install
+COPY package.json ./
+RUN curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install
 
 COPY . .
 
-# Start server
-CMD ["node", "index.js"]
+EXPOSE 8080
+CMD ["npm", "start"]
