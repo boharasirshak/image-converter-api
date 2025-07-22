@@ -1,9 +1,11 @@
 FROM dpokidov/imagemagick:latest
 
-# Install Node.js and additional HEIF tools
+# Override the entrypoint to use normal shell commands
+ENTRYPOINT []
+
+# Install only Node.js without additional HEIF libraries to avoid conflicts
 RUN apt-get update && apt-get install -y \
     curl \
-    libheif-examples \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js

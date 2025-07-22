@@ -62,24 +62,16 @@ app.post('/convert', upload.single('image'), (req, res) => {
       console.error('stderr:', stderr);
       console.error('stdout:', stdout);
       
-      // Try with heif-convert as fallback
-      console.log('Trying heif-convert as fallback...');
-      exec(`heif-convert "${inputPath}" "${outputPath}"`, (heifError, heifStdout, heifStderr) => {
-        if (heifError) {
-          console.error('heif-convert also failed:', heifError);
-          console.error('heif stderr:', heifStderr);
-          return res.status(500).send('Image conversion failed. File may be corrupted or in an unsupported format.');
+      // Try to identify the file to see what's wrong
+      exec(`magick identify "${inputPath}"`, (identifyError, identifyStdout, identifyStderr) => {
+        if (identifyError) {
+          console.error('File identification failed:', identifyError);
+          console.error('identify stderr:', identifyStderr);
+          return res.status(500).send(`Image conversion failed. Unable to identify file format. Error: ${error.message}`);
         }
         
-        console.log('heif-convert succeeded');
-        res.sendFile(outputPath, (err) => {
-          if (err) {
-            console.error('Error sending file:', err);
-          }
-          // Clean up temp files
-          fs.unlink(inputPath, () => {});
-          fs.unlink(outputPath, () => {});
-        });
+        console.log('File identification successful:', identifyStdout);
+        return res.status(500).send(`Image conversion failed but file was identified as: ${identifyStdout.trim()}. Error: ${error.message}`);
       });
       return;
     }
